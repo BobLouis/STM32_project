@@ -1,0 +1,28 @@
+--cpu=Cortex-M4.fp.sp
+"psi_1\startup_stm32f405xx.o"
+"psi_1\main.o"
+"psi_1\gpio.o"
+"psi_1\spi.o"
+"psi_1\stm32f4xx_it.o"
+"psi_1\stm32f4xx_hal_msp.o"
+"psi_1\stm32f4xx_hal_spi.o"
+"psi_1\stm32f4xx_hal_rcc.o"
+"psi_1\stm32f4xx_hal_rcc_ex.o"
+"psi_1\stm32f4xx_hal_flash.o"
+"psi_1\stm32f4xx_hal_flash_ex.o"
+"psi_1\stm32f4xx_hal_flash_ramfunc.o"
+"psi_1\stm32f4xx_hal_gpio.o"
+"psi_1\stm32f4xx_hal_dma_ex.o"
+"psi_1\stm32f4xx_hal_dma.o"
+"psi_1\stm32f4xx_hal_pwr.o"
+"psi_1\stm32f4xx_hal_pwr_ex.o"
+"psi_1\stm32f4xx_hal_cortex.o"
+"psi_1\stm32f4xx_hal.o"
+"psi_1\stm32f4xx_hal_exti.o"
+"psi_1\stm32f4xx_hal_tim.o"
+"psi_1\stm32f4xx_hal_tim_ex.o"
+"psi_1\system_stm32f4xx.o"
+--library_type=microlib --strict --scatter "PSI_1\PSI_1.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "PSI_1.map" -o PSI_1\PSI_1.axf
