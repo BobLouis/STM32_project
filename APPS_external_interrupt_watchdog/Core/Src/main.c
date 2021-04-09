@@ -77,11 +77,13 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-static CAN_TxHeaderTypeDef TxMessage;
+static CAN_TxHeaderTypeDef TxMessage_right;
+static CAN_TxHeaderTypeDef TxMessage_left;
 static CAN_RxHeaderTypeDef RxMessage;
 
 //Rx Txdata
-uint8_t TxData[8]={0};
+uint8_t TxData_R[8]={0};
+uint8_t TxData_L[8]={0};
 uint32_t TxMailbox;
 uint8_t RxData[8]={0};
 
@@ -89,12 +91,16 @@ uint8_t RxData[8]={0};
 uint16_t OwnID=0x123;
 uint16_t RemoteID =0x0A0;
 
-
+//sensor
+uint32_t accMeter =0;
+uint16_t wheelSpeed[4];
+uint16_t steerDegree =0;
 
 uint16_t adcArr[3];
 bool readyButton;
 uint8_t errorNumber;
-uint16_t torque=0;
+uint16_t torque_right=0;
+uint16_t torque_left=0;
 uint32_t startTime;
 uint32_t duration=0;
 bool pedals=0;
@@ -115,7 +121,8 @@ void led_blink(void);
 void pedals_mode(void);
 uint8_t check_safety(void);
 uint16_t map(uint16_t value,uint16_t inputL,uint16_t inputH,uint16_t outputL ,uint16_t outputH);
-
+void torque_command(void);
+void torque_to_can(void);
 //CAN
 void CAN_filterConfig(void);
 void CAN_Txsetup(void);
@@ -183,7 +190,8 @@ int main(void)
     /* USER CODE BEGIN 3 */
 		//waiting for precharge reset_switch, ready to drive to activate the driving mode
 		if(rtd_io==0){
-				torque=0;
+				torque_right=0;
+				torque_left=0;
 				HAL_GPIO_WritePin(readyToDrive_LED_GPIO_Port,readyToDrive_LED_Pin,GPIO_PIN_RESET);
 				HAL_GPIO_WritePin(pedals_LED_GPIO_Port,pedals_LED_Pin,GPIO_PIN_RESET);
 				duration=0;
@@ -290,28 +298,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim2)
             the HAL_TIM_PeriodElapsedCallback could be implemented in the user file
    */
 
-	/*01 torque command (torque = ([0]+[1]*256)/10)
-  23 speed command (angular speed = [2]+[3]*256
-  4   Direction (0:reverse 1:forwards rd).  *further note: if the direction command is changed suddenly when the inverter is still enable, inverter is disable without triggering any fault
-  And the Lockout mechanism is set again which will force the user to re-enable it
-  5   5.0 inverter enable (0:off 1:ON)
-       5.1 inverter discharge (0 disable 1 enable)
-       5.2 speed mode
-  67  commanded torque limit (0 default)
-  this message should be continuously broadcast at least 500 milliseconds
-	*/
 	
-	if(rtd_io==0){
-		TxData[0]=0;
-		TxData[1]=0;
-		TxData[5]=0;
-	}else{
-		TxData[0]=(torque%256);
-		TxData[1]=(torque/256);
-		TxData[4]=1;
-		TxData[5]=1;
-	}
-	HAL_CAN_AddTxMessage(&hcan1,&TxMessage,TxData,&TxMailbox);
+	
+	
+	torque_command();
+	HAL_CAN_AddTxMessage(&hcan1,&TxMessage_right,TxData_R,&TxMailbox);
+	HAL_CAN_AddTxMessage(&hcan1,&TxMessage_right,TxData_L,&TxMailbox);
 	HAL_IWDG_Refresh(&hiwdg);
 	HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_1);
 }
@@ -344,21 +336,31 @@ void CAN_Txsetup(){
 		Error_Handler();
 		}
 		
-		TxMessage.StdId=0x0C0;
-		TxMessage.ExtId=0x01;
-		TxMessage.RTR=CAN_RTR_DATA;
-		TxMessage.IDE=CAN_ID_STD;
-		TxMessage.DLC=8;
-		TxMessage.TransmitGlobalTime=DISABLE;   //time trigger must be turned ON
+		TxMessage_right.StdId=0x0C0;
+		TxMessage_right.ExtId=0x01;
+		TxMessage_right.RTR=CAN_RTR_DATA;
+		TxMessage_right.IDE=CAN_ID_STD;
+		TxMessage_right.DLC=8;
+		TxMessage_right.TransmitGlobalTime=DISABLE;   //time trigger must be turned ON
 		
-		TxData[0]=0;
-		TxData[1]=0;
-		TxData[2]=0;
-		TxData[3]=0;
-		TxData[4]=0;
-		TxData[5]=0;
-		TxData[6]=0;
-		TxData[7]=0;
+		TxData_R[0]=0;
+		TxData_R[1]=0;
+		TxData_R[2]=0;
+		TxData_R[3]=0;
+		TxData_R[4]=0;
+		TxData_R[5]=0;
+		TxData_R[6]=0;
+		TxData_R[7]=0;
+		
+		
+		TxData_L[0]=0;
+		TxData_L[1]=0;
+		TxData_L[2]=0;
+		TxData_L[3]=0;
+		TxData_L[4]=0;
+		TxData_L[5]=0;
+		TxData_L[6]=0;
+		TxData_L[7]=0;
 }
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
@@ -374,40 +376,44 @@ void driving_mode(void){
 		case 1:{
 			//wiring disconnection
 			HAL_GPIO_WritePin(fault_LED_GPIO_Port,fault_LED_Pin,GPIO_PIN_SET);
-			torque=0;
+			torque_right=0;
+			torque_left=0;
 			rtd_io=0;
 			break;
 		}
 		case 2:{
 			//apps throttle differ over
 			HAL_GPIO_WritePin(fault_LED_GPIO_Port,fault_LED_Pin,GPIO_PIN_SET);
-			torque=0;
+			torque_right=0;
+			torque_left=0;
 			rtd_io=0;
 			break;
 		}
 		case 3:{
 			//bpps || apps out of range
 			HAL_GPIO_WritePin(fault_LED_GPIO_Port,fault_LED_Pin,GPIO_PIN_SET);
-			torque=0;
+			torque_right=0;
+			torque_left=0;
 			rtd_io=0;
 			break;
 		}
 		case 4:{
 			//pedals =>enter pedals mode
 			HAL_GPIO_WritePin(pedals_LED_GPIO_Port,pedals_LED_Pin,GPIO_PIN_SET);
-			torque=0;
+			torque_right=0;
+			torque_left=0;
 			pedals=1;
 			break;
 		}
 		case 5:{
 			//brake acting
-			torque=0;
+			torque_right=0;
+			torque_left=0;
 			break;
 		}
 		case 0:{
 			//accelaration mode
-			
-			torque=map(APPS,(APPSROFFSET+APPSLOFFSET)/2,(APPSRMAX+APPSLMAX)/2,0,1400);
+			torque_command();
 			break;
 		}
 			
@@ -453,6 +459,46 @@ uint16_t map(uint16_t value, uint16_t inputL,uint16_t inputH,uint16_t outputL ,u
 		return returnVal;
 	}
 }
+
+void torque_command(void){
+	
+		torque_right=map(APPS,(APPSROFFSET+APPSLOFFSET)/2,(APPSRMAX+APPSLMAX)/2,0,1400);
+		torque_left=map(APPS,(APPSROFFSET+APPSLOFFSET)/2,(APPSRMAX+APPSLMAX)/2,0,1400);
+}
+
+void torque_to_can(void){
+	/*01 torque command (torque = ([0]+[1]*256)/10)
+  23 speed command (angular speed = [2]+[3]*256
+  4   Direction (0:reverse 1:forwards rd).  *further note: if the direction command is changed suddenly when the inverter is still enable, inverter is disable without triggering any fault
+  And the Lockout mechanism is set again which will force the user to re-enable it
+  5   5.0 inverter enable (0:off 1:ON)
+       5.1 inverter discharge (0 disable 1 enable)
+       5.2 speed mode
+  67  commanded torque limit (0 default)
+  this message should be continuously broadcast at least 500 milliseconds
+	*/
+	if(rtd_io==0){
+		TxData_R[0]=0;
+		TxData_R[1]=0;
+		TxData_R[5]=0;
+		
+		TxData_L[0]=0;
+		TxData_L[1]=0;
+		TxData_L[5]=0;
+	}else{
+		TxData_R[0]=(torque_right%256);
+		TxData_R[1]=(torque_right/256);
+		TxData_R[4]=1;
+		TxData_R[5]=1;
+		
+		TxData_L[0]=(torque_left%256);
+		TxData_L[1]=(torque_left/256);
+		TxData_L[4]=1;
+		TxData_L[5]=1;
+	}
+	
+}
+
 /* USER CODE END 4 */
 
 /**
