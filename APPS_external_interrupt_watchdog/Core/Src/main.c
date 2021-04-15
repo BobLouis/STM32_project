@@ -303,7 +303,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim2)
 	
 	torque_command();
 	HAL_CAN_AddTxMessage(&hcan1,&TxMessage_right,TxData_R,&TxMailbox);
-	HAL_CAN_AddTxMessage(&hcan1,&TxMessage_right,TxData_L,&TxMailbox);
+	HAL_CAN_AddTxMessage(&hcan1,&TxMessage_left , TxData_L,&TxMailbox);
 	HAL_IWDG_Refresh(&hiwdg);
 	HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_1);
 }
@@ -342,6 +342,14 @@ void CAN_Txsetup(){
 		TxMessage_right.IDE=CAN_ID_STD;
 		TxMessage_right.DLC=8;
 		TxMessage_right.TransmitGlobalTime=DISABLE;   //time trigger must be turned ON
+		
+		TxMessage_left.StdId=0x0F0;
+		TxMessage_left.ExtId=0x01;
+		TxMessage_left.RTR=CAN_RTR_DATA;
+		TxMessage_left.IDE=CAN_ID_STD;
+		TxMessage_left.DLC=8;
+		TxMessage_left.TransmitGlobalTime=DISABLE;   //time trigger must be turned ON
+		
 		
 		TxData_R[0]=0;
 		TxData_R[1]=0;
