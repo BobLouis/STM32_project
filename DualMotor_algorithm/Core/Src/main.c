@@ -36,10 +36,13 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
-#define speed (double)adcArr[0]
-#define steer (double)adcArr[1]
-
+#define RAD 180.0/3.14159
+#define RAD_REC 3.14159/180.0 
+#define SPEED (double)adcArr[0]
+#define STEER (double)adcArr[1]
+#define SPEED_MAP map(SPEED,0.0,4095.0,-20.0,20.0)
+#define STEER_MAP map(STEER,0.0,4095.0,-30*RAD_REC,30*RAD_REC)
+#define MASS 300.0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -50,13 +53,20 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint16_t adcArr[3];
-const double Cr=(300*180)/3.1415;
-const double Cf=(300*180)/3.1415;
+//const
+const double Cr=(300*180)/3.14159;
+const double Cf=(300*180)/3.14159;
 const double Lf=1.503*0.55;
 const double Lr=1.503*0.45;
-const double Iz=25;
-const double mass=300;
+const double Iz=25.0;
+
+//var
+uint16_t adcArr[3];
+double beta=0.0;
+double gamma=0.0;
+
+
+//const double mass=300.0;
 
 /* USER CODE END PV */
 
@@ -70,6 +80,9 @@ double a21(void);
 double a22(void);
 double b11(void);
 double b21(void);
+double beta_diff(void);
+double gamma_diff(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -168,6 +181,20 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* Prevent unused argument(s) compilation warning */
+  UNUSED(htim);
+
+  /* NOTE : This function should not be modified, when the callback is needed,
+            the HAL_TIM_PeriodElapsedCallback could be implemented in the user file
+   */
+	
+	
+}
+
+
+
 double map(double value, double inputL,double inputH,double outputL ,double outputH){
 	
 	uint16_t returnVal=(value-inputL)*(outputH-outputL)/(inputH-inputL)+outputL;
@@ -177,6 +204,41 @@ double map(double value, double inputL,double inputH,double outputL ,double outp
 		return returnVal;
 	}
 }
+
+double a11(void){
+	return -2*(Cr+Cf)/(MASS*SPEED_MAP);
+}
+
+double a12(void){
+	return -1-2*(Lf*Cf-Lr*Cr)/(MASS*SPEED_MAP*SPEED_MAP);
+}
+
+double a21(void){
+	return -2*(Lf*Cf-Lr*Cr)/Iz;
+}
+
+double a22(void){
+	return -2*(Lf*Lf*Cf+Lr*Lr*Cr)/(Iz*SPEED_MAP);
+}
+
+double b11(void){
+	return 2*Cf/(MASS*SPEED_MAP);
+}
+
+double b12(void){
+	return 2*Lf*Cf/Iz;
+}
+
+double beta_diff(void){
+	return a11()*beta+a12()*gamma+b11()*STEER_MAP;
+}
+
+double gamma_diff(void){
+	return a21()*beta+a22()*gamma+b12()*STEER_MAP;
+}
+
+
+
 /* USER CODE END 4 */
 
 /**
@@ -209,3 +271,5 @@ void assert_failed(uint8_t *file, uint32_t line)
 #endif /* USE_FULL_ASSERT */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+
+
