@@ -40,8 +40,7 @@
 #define RAD_REC 3.14159/180.0 
 #define SPEED (double)adcArr[0]
 #define STEER (double)adcArr[1]
-#define SPEED_MAP map(SPEED,0.0,4095.0,-20.0,20.0)
-#define STEER_MAP map(STEER,0.0,4095.0,-30*RAD_REC,30*RAD_REC)
+
 #define MASS 300.0
 /* USER CODE END PD */
 
@@ -62,9 +61,28 @@ const double Iz=25.0;
 
 //var
 uint16_t adcArr[3];
+double beta_diff_cur=0.0;
+double beta_diff_pre=0.0;
+double gamma_diff_cur=0.0;
+double gamma_diff_pre=0.0;
 double beta=0.0;
 double gamma=0.0;
 
+double a11_var;
+double a12_var;
+double a21_var;
+double a22_var;
+double b11_var;
+double b12_var;
+
+double steer_map=0.0;
+double speed_map=0.0;
+
+
+//time
+double counter_cur=0;
+double counter_pre=0;
+double period=0;
 
 //const double mass=300.0;
 
@@ -79,9 +97,11 @@ double a12(void);
 double a21(void);
 double a22(void);
 double b11(void);
-double b21(void);
+double b12(void);
 double beta_diff(void);
 double gamma_diff(void);
+
+
 
 /* USER CODE END PFP */
 
@@ -189,6 +209,22 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* NOTE : This function should not be modified, when the callback is needed,
             the HAL_TIM_PeriodElapsedCallback could be implemented in the user file
    */
+	a11_var=a11();
+	a12_var=a12();
+	a21_var=a21();
+	a22_var=a22();
+	b11_var=b11();
+	b12_var=b12();
+	speed_map=map((double)adcArr[0],0.0,4095.0,-20.0,20.0);
+	steer_map=map((double)adcArr[1],0.0,4095.0,-30*RAD_REC,30*RAD_REC);
+	beta_diff_cur=beta_diff();
+	gamma_diff_cur = gamma_diff();
+	counter_cur=HAL_GetTick();
+	period = counter_cur-counter_pre;
+	beta+=period*beta_diff()/1000;
+	gamma+=period*gamma_diff()/1000;
+	counter_pre=counter_cur;
+	
 	
 	
 }
@@ -197,7 +233,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 double map(double value, double inputL,double inputH,double outputL ,double outputH){
 	
-	uint16_t returnVal=(value-inputL)*(outputH-outputL)/(inputH-inputL)+outputL;
+	double returnVal=(value-inputL)*(outputH-outputL)/(inputH-inputL)+outputL;
 	if(returnVal>outputH){
 		return outputH;
 	}else {
@@ -206,11 +242,11 @@ double map(double value, double inputL,double inputH,double outputL ,double outp
 }
 
 double a11(void){
-	return -2*(Cr+Cf)/(MASS*SPEED_MAP);
+	return -2*(Cr+Cf)/(MASS*speed_map);
 }
 
 double a12(void){
-	return -1-2*(Lf*Cf-Lr*Cr)/(MASS*SPEED_MAP*SPEED_MAP);
+	return -1-2*(Lf*Cf-Lr*Cr)/(MASS*speed_map*speed_map);
 }
 
 double a21(void){
@@ -218,11 +254,11 @@ double a21(void){
 }
 
 double a22(void){
-	return -2*(Lf*Lf*Cf+Lr*Lr*Cr)/(Iz*SPEED_MAP);
+	return -2*(Lf*Lf*Cf+Lr*Lr*Cr)/(Iz*speed_map);
 }
 
 double b11(void){
-	return 2*Cf/(MASS*SPEED_MAP);
+	return 2*Cf/(MASS*speed_map);
 }
 
 double b12(void){
@@ -230,11 +266,11 @@ double b12(void){
 }
 
 double beta_diff(void){
-	return a11()*beta+a12()*gamma+b11()*STEER_MAP;
+	return a11()*beta+a12()*gamma+b11()*steer_map;
 }
 
 double gamma_diff(void){
-	return a21()*beta+a22()*gamma+b12()*STEER_MAP;
+	return a21()*beta+a22()*gamma+b12()*steer_map; 
 }
 
 
