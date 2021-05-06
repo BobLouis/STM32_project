@@ -53,10 +53,11 @@ uint8_t TxData[8]={0};
 uint32_t TxMailbox;
 uint8_t RxData[8]={0};
 
+
 //address
 uint16_t OwnID=0x123;
 uint16_t RemoteID =0x0A0;
-
+uint16_t Received_ID;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -110,7 +111,7 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+		//HAL_GPIO_WritePin(GPIOA,GPIO_PIN_1,GPIO_PIN_SET);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -204,6 +205,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
 	if(HAL_CAN_GetRxMessage(hcan,CAN_RX_FIFO0,&RxMessage,RxData)!=HAL_OK){
 		Error_Handler();
 	}
+	Received_ID=RxMessage.StdId;
 	HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_1);
 }
 /* USER CODE END 4 */

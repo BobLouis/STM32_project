@@ -215,10 +215,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	a22_var=a22();
 	b11_var=b11();
 	b12_var=b12();
-	speed_map=1;
-	steer_map=0.0872664626;
-	//speed_map=map((double)adcArr[0],0.0,4095.0,-20.0,20.0);
-	//steer_map=map((double)adcArr[1],0.0,4095.0,-30*RAD_REC,30*RAD_REC);
+	//speed_map=1;
+	//steer_map=0.0872664626;
+	speed_map=map((double)adcArr[0],0.0,4095.0,-20.0,20.0);
+	steer_map=map((double)adcArr[1],0.0,4095.0,-30*RAD_REC,30*RAD_REC);
 	beta_diff_cur=beta_diff();
 	gamma_diff_cur = gamma_diff();
 	counter_cur=HAL_GetTick();
